@@ -1,0 +1,303 @@
+---
+title: "Effects of Morph*Flower Measurements on Pollen Counts/Purity"
+author: "Valerie Martin"
+date: "10/12/2019"
+output:
+  word_document: default
+  pdf_document: default
+---
+```{r include=FALSE}
+setwd("~/Desktop/Skypilot 2017/Stigma")
+library(ggplot2)
+library(plyr)
+library(nlme)
+library(car)
+library(emmeans)
+library(multcompView)
+library(multcomp)
+
+stigma <- read.csv("Skypilot 2017 (MASTER) Tab2 08-12-19__Purity added.csv")
+cols <- c("Specimen.No.", "Year", "Era", "Species", "Scent.Morph", "Date", "Location", "Altitude..m.",
+          "Habitat..NMS.", "Corolla.Flare_1", "Sepal.Length_1", "Tube.Length_1", "Lobe.Length_1", "Lobe.Width_1", 
+          "No.PVgrains_stigma", "No.PVgrains_off", "No.OtherGrains", "No.OtherTypes")
+stigma.sm <- subset(stigma, select = cols)
+
+#-----# summarize data & add columns where appropriate#-----#
+##Val: Not quite sure what's happening in the ddply() step...
+ddply(stigma.sm, .(Era,Location, Altitude..m., Scent.Morph), summarise, con=mean(No.PVgrains_stigma, na.rm=T), het=mean(No.OtherGrains, na.rm=T))
+
+stigma.sm$No.TotalPVgrains <- stigma.sm$No.PVgrains_stigma + stigma.sm$No.PVgrains_off
+stigma.sm$Purity.tot <- stigma.sm$No.TotalPVgrains/(stigma.sm$No.TotalPVgrains + stigma.sm$No.OtherGrains)
+stigma.sm$Purity.tot <- as.numeric(as.character(stigma.sm$Purity.tot))
+stigma.sm$Purity.on <- stigma.sm$No.PVgrains_stigma/(stigma.sm$No.PVgrains_stigma + stigma.sm$No.OtherGrains)
+stigma.sm$Corolla.Length <- stigma.sm$Tube.Length_1 + stigma.sm$Lobe.Length_1
+
+#-----# subsets for analysis #-----#
+# subset to complete cases
+stigma.sm <- subset(stigma.sm, stigma.sm$Corolla.Flare_1 > 0 & stigma.sm$Sepal.Length_1 > 0 & stigma.sm$Tube.Length_1 > 0 & 
+                      stigma.sm$Lobe.Length_1 >0 & stigma.sm$Lobe.Width_1 >0) #eliminates all flowers without complete measurements
+# subset by morph
+stigma.sw <- subset(stigma.sm, Scent.Morph =="Sweet") #subset to sweet morph
+stigma.sk <- subset(stigma.sm, Scent.Morph =="Skunky") #subset to skunky morph
+nohab <- subset(stigma.sm, select = -c(stigma$Habitat..NMS.)) #subset to eliminate habitat
+stigma.new <- subset(stigma.sm, Era == "present") #selects for new era
+stigma.sw.new <- subset(stigma.sw, Era == "present") #selects for new sweet
+stigma.sw$No.Totalgrains <- stigma.sw$No.TotalPVgrains+stigma.sw$No.OtherGrains
+stigma.sk.new <- subset(stigma.sk, Era == "present") #selects for new skunky
+stigma.sk$No.Totalgrains <- stigma.sk$No.TotalPVgrains+stigma.sk$No.OtherGrains
+
+#-----# Exploration of Replication #-----#
+ddply(stigma.sm, .(Scent.Morph, Location, Habitat..NMS., Era), summarise, N.TL=length(Tube.Length_1[!is.na(Tube.Length_1)]), 
+      N.St=length(No.PVgrains_stigma[!is.na(No.PVgrains_stigma)]))
+ddply(stigma.sm, .(Location, Habitat..NMS., Scent.Morph), summarise, N=length(No.TotalPVgrains))
+ddply(stigma.sm, .(Location, Habitat..NMS.), summarise, N= length(No.TotalPVgrains))
+ddply(stigma.sw, .(Location, Habitat..NMS.), summarise, N=length(No.TotalPVgrains))
+ddply(stigma.sk, .(Location, Habitat..NMS.), summarise, N=length(No.TotalPVgrains))
+```
+
+### Sweet PC
+Val: for the PC analyses, I was running into an error where I couldn't add PC1 and PC2 columns to either the sweet or skunky subsets... in the case of sweet: pc.extracted has 47 rows and stigma.sw.new has 50 rows.  
+```{r echo=FALSE}
+measures <- c("Corolla.Flare_1", "Corolla.Length","Lobe.Width_1")
+sw.size<-as.matrix(subset(stigma.sw.new, select=measures))
+sw.size<-sw.size[complete.cases(sw.size),]
+pc<-princomp(sw.size)
+print(pc)
+plot(pc, type="l")
+summary(pc)
+loadings(pc)  #Val: What is the loadings() function telling us?
+pc.extracted <- as.data.frame(predict(pc, newdata=stigma.sw.new))
+#Val: looking at the loadings() function, I think that all floral measurements are positively correlated with pc1 when we only look at 2017 data
+stigma.sw.new$PC1 <- -pc.extracted$Comp.1 # all floral measurements negatively correclated with pc1, so I reversed it to be more intuitive
+stigma.sw.new$PC2 <- pc.extracted$Comp.2 # only tube length is negatively correlated with pc2
+plot(stigma.sw.new$PC1, stigma.sw.new$PC2, ylim=c(-1,1), xlim=c(-1.5,1.5), ylab="PC2 (18.4%)", xlab="PC1 (77.1%)")
+```
+
+### Skunky PC
+```{r echo=FALSE}
+measures <- c("Corolla.Flare_1", "Corolla.Length","Lobe.Width_1")
+sk.size<-as.matrix(subset(stigma.sk.new, select=measures))
+sk.size<-sk.size[complete.cases(sk.size),]
+pc<-princomp(sk.size)
+print(pc)
+plot(pc, type="l")
+summary(pc)
+loadings(pc)  #Val: What is the loadings() function telling us?
+pc.extracted <- as.data.frame(predict(pc, newdata=stigma.sk.new))
+stigma.sk.new$PC1 <- -pc.extracted$Comp.1 # all floral measurements negatively correclated with pc1, so I reversed it to be more intuitive
+stigma.sk.new$PC2 <- pc.extracted$Comp.2
+plot(stigma.sk.new$PC1, stigma.sk.new$PC2, ylim=c(-1,1), xlim=c(-1.5,1.5), ylab="PC2 (24.4%)", xlab="PC1 (71.4%)")
+```
+
+
+### Pooled PC (What I will run analyses with)
+```{r}
+measures <- c("Corolla.Flare_1", "Corolla.Length","Lobe.Width_1")
+pv.size<-as.matrix(subset(stigma.new, select=measures))
+pv.size<-pv.size[complete.cases(pv.size),]
+pc<-princomp(pv.size)
+print(pc)
+plot(pc, type="l")
+summary(pc)
+loadings(pc)  #Val: What is the loadings() function telling us?
+pc.extracted <- as.data.frame(predict(pc, newdata=stigma.new))
+stigma.new$PC1 <- pc.extracted$Comp.1 
+stigma.new$PC2 <- pc.extracted$Comp.2
+plot(stigma.new$PC1, stigma.new$PC2, ylim=c(-1,1), xlim=c(-1.5,1.5), ylab="PC2 (21.9%)", xlab="PC1 (73.8%)")
+```
+
+
+### Both Morphs - no significant effects
+Effects on No. Total P.v. pollen grains
+Sqrt-transformed
+```{r echo=FALSE}
+#Effects of corolla flare*morph on Total P.v. pollen
+fit <- lme(sqrt(No.TotalPVgrains) ~ Corolla.Flare_1*Scent.Morph, random = ~1|Habitat..NMS., 
+           data = stigma.new, method = "ML", na.action = na.omit)
+anova.lme(fit, type = "marginal")
+
+#Effects of tube length*morph on Total P.v. pollen
+fit <- lme(sqrt(No.TotalPVgrains) ~ Tube.Length_1*Scent.Morph, random = ~1|Habitat..NMS., 
+           data = stigma.new, method = "ML", na.action = na.omit)
+anova.lme(fit, type = "marginal")
+
+#Effects of Corolla length*morph on Total P.v. pollen
+fit <- lme(sqrt(No.TotalPVgrains) ~ Corolla.Length*Scent.Morph, random = ~1|Habitat..NMS., 
+           data = stigma.new, method = "ML", na.action = na.omit)
+anova.lme(fit, type = "marginal")
+
+#Effects of PC1*morph on Total P.v. pollen
+fit <- lme(sqrt(No.TotalPVgrains) ~ PC1*Scent.Morph, random = ~1|Habitat..NMS.,
+           data = stigma.new, method = "ML", na.action = na.omit)
+anova.lme(fit, type = "marginal")
+
+ggplot(stigma.new, aes(Scent.Morph, No.TotalPVgrains)) +
+  geom_violin(fill='gray') +
+  geom_dotplot(binaxis='y', stackdir='center', dotsize=1)  +
+  scale_y_continuous(breaks=c(0,100, 200, 300, 400, 500, 600), trans="sqrt") +
+  ylab("No. Focal Grains") +
+  xlab("Morph") +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), text = element_text(size=18))
+
+scatter <- ggplot(stigma.new, aes(PC1, (No.TotalPVgrains), colour = Scent.Morph))
+scatter + geom_point(aes(shape = Scent.Morph), size = 3) + 
+    labs(x = "PC1", y = "Total PV Grains")
+
+```
+
+###Effects on No. Other Pollen Grains
+Log-transformed
+#### Seeing significant p-values for Morph ~ No. Other Pollen Grains (skunky picking up more foreign pollen)
+```{r echo=FALSE}
+#Effects of Corolla Flare * Morph on Other Pollen
+fit <- lme(log1p(No.OtherGrains) ~ Corolla.Flare_1*Scent.Morph, random = ~1|Habitat..NMS., 
+           data = stigma.new, method = "ML", na.action = na.omit)
+anova.lme(fit, type = "marginal")
+
+#Effects of tube length*morph on Other pollen
+fit <- lme(log1p(No.OtherGrains) ~ Tube.Length_1*Scent.Morph, random = ~1|Habitat..NMS., 
+           data = stigma.new, method = "ML", na.action = na.omit)
+anova.lme(fit, type="marginal")
+
+#Effects of Corolla length*morph on Other pollen
+fit <- lme(log1p(No.OtherGrains) ~ Corolla.Length*Scent.Morph, random = ~1|Habitat..NMS., 
+           data = stigma.new, method = "ML", na.action = na.omit)
+anova.lme(fit, type="marginal")
+
+#Effects of PC1*morph on Other pollen
+fit <- lme(log1p(No.OtherGrains) ~ PC1*Scent.Morph, random = ~1|Habitat..NMS., 
+           data = stigma.new, method = "ML", na.action = na.omit)
+anova.lme(fit, type="marginal")
+
+#Val: skunky morph seems to pick up a lot more foreign pollen
+#Getting message: "'stat_bindot()' using 'bins=30'.  Pick better value with 'binwidth'" 
+#what does this mean?
+ggplot(stigma.new, aes(Scent.Morph, No.OtherGrains)) +
+  geom_violin(fill='gray') +
+  geom_dotplot(binaxis='y', stackdir='center', dotsize=1)  +
+  scale_y_continuous(breaks=c(0,500,1000,2000), trans="log1p") +
+  ylab("No. Other Grains") +
+  xlab("Morph") +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), text = element_text(size=18))
+
+scatter <- ggplot(stigma.new, aes(Corolla.Length, No.OtherGrains, colour = Scent.Morph))
+scatter + geom_point(aes(shape = Scent.Morph), size = 3) + 
+    scale_y_continuous(breaks=c(0,500,1000,2000), trans="log1p") +
+    geom_smooth(method = "lm", aes(fill = Scent.Morph), alpha = 0.1) +
+    labs(x = "Corolla Length", y = "No. Other Grains")
+
+scatter <- ggplot(stigma.new, aes(PC1, No.OtherGrains, colour = Scent.Morph))
+scatter + geom_point(aes(shape = Scent.Morph), size = 3) + 
+    scale_y_continuous(breaks=c(0,500,1000,2000), trans="log1p") +
+    geom_smooth(method = "lm", aes(fill = Scent.Morph), alpha = 0.1) +
+    labs(x = "PC1", y = "No. Other Grains")
+```
+
+###Total Purity Distribution
+#### Decided to go with the "logit" transformation - recommended in my stats class for proportional data. 
+```{r echo=FALSE}
+x = stigma.new$Purity.tot
+qqnorm(x)
+qqline(x)
+hist(x)
+qqnorm(logit(x))
+qqline(logit(x))
+hist(logit(x))
+```
+
+###Effects on Total Purity
+Log-transformed
+#### Seeing significant effects of scent morph on pollen purity (skunky much lower than sweet)
+```{r echo=FALSE}
+#Effects of Corolla Flare * Total Purity
+fit <- lme(logit(Purity.tot) ~ Corolla.Flare_1*Scent.Morph, random = ~1|Habitat..NMS., 
+           data = stigma.new, method = "ML", na.action = na.omit)
+anova.lme(fit, type="marginal")
+
+#Effects of tube length*morph on Total Purity
+fit <- lme(logit(Purity.tot) ~ Tube.Length_1*Scent.Morph, random = ~1|Habitat..NMS., 
+           data = stigma.new, method = "ML", na.action = na.omit)
+anova.lme(fit, type="marginal")
+
+#Effects of Corolla length*morph on Total Purity
+fit <- lme(logit(Purity.tot) ~ Corolla.Length*Scent.Morph, random = ~1|Habitat..NMS., 
+           data = stigma.new, method = "ML", na.action = na.omit)
+anova.lme(fit, type="marginal")
+
+#Effects of PC1*morph on Total Purity
+fit <- lme(logit(Purity.tot) ~ PC1*Scent.Morph, random = ~1|Habitat..NMS., 
+           data = stigma.new, method = "ML", na.action = na.omit)
+anova.lme(fit, type="marginal")
+
+#Val: Skunky seems to have lower total pollen purity
+ggplot(stigma.new, aes(Scent.Morph, Purity.tot)) +
+  geom_violin(fill='gray') +
+  geom_dotplot(binaxis='y', stackdir='center', dotsize=1)  +
+  ylab("Total Pollen Purity") +
+  xlab("Morph") +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), text = element_text(size=18))
+
+scatter <- ggplot(stigma.new, aes(Corolla.Length, Purity.tot, colour = Scent.Morph))
+scatter + geom_point(aes(shape = Scent.Morph), size = 3) + 
+    geom_smooth(method = "lm", aes(fill = Scent.Morph), alpha = 0.1) +
+    labs(x = "Corolla Length", y = "Total Pollen Purity")
+
+scatter <- ggplot(stigma.new, aes(PC1, Purity.tot, colour = Scent.Morph))
+scatter + geom_point(aes(shape = Scent.Morph), size = 3) + 
+    geom_smooth(method = "lm", aes(fill = Scent.Morph), alpha = 0.1) +
+    labs(x = "PC1", y = "Total Pollen Purity")
+
+```
+
+###Effects on No. Other Pollen Types - no significant effects
+Log-transformed
+```{r echo=FALSE}
+#Effects of Corolla Flare * No. Other Pollen Types
+fit <- lme(log1p(No.OtherTypes) ~ Corolla.Flare_1*Scent.Morph, random = ~1|Habitat..NMS., 
+           data = stigma.new, method = "ML", na.action = na.omit)
+anova.lme(fit, type="marginal")
+
+#Effects of tube length*morph on Other pollen
+fit <- lme(log1p(No.OtherTypes) ~ Tube.Length_1*Scent.Morph, random = ~1|Habitat..NMS., 
+           data = stigma.new, method = "ML", na.action = na.omit)
+anova.lme(fit, type = "marginal")
+
+#Effects of Corolla length*morph on No. Other Pollen Types
+fit <- lme(sqrt(No.OtherTypes) ~ Corolla.Length*Scent.Morph, random = ~1|Habitat..NMS., 
+           data = stigma.new, method = "ML", na.action = na.omit)
+anova.lme(fit, type = "marginal")
+
+#Effects of PC1*morph on No. Other Pollen Types
+fit <- lme(sqrt(No.OtherTypes) ~ PC1*Scent.Morph, random = ~1|Habitat..NMS., 
+           data = stigma.new, method = "ML", na.action = na.omit)
+anova.lme(fit, type = "marginal")
+```
+
+
+```{r}
+library(psych)
+data <- na.omit(stigma.sw.new$No.TotalPVgrains)
+mean(data)
+description <- describe(data)
+description$se
+
+data <- na.omit(stigma.sw.new$No.PVgrains_stigma)
+mean(data)
+description <- describe(data)
+description$se
+
+data2 <- na.omit(stigma.sk.new$No.TotalPVgrains)
+mean(data2)
+description2 <- describe(data2)
+description2$se
+
+data2 <- na.omit(stigma.sk.new$No.PVgrains_stigma)
+mean(data2)
+description2 <- describe(data2)
+description2$se
+
+data3 <- na.omit
+```

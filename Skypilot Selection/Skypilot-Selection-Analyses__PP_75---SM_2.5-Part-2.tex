@@ -1,0 +1,595 @@
+\documentclass[]{article}
+\usepackage{lmodern}
+\usepackage{amssymb,amsmath}
+\usepackage{ifxetex,ifluatex}
+\usepackage{fixltx2e} % provides \textsubscript
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+\else % if luatex or xelatex
+  \ifxetex
+    \usepackage{mathspec}
+  \else
+    \usepackage{fontspec}
+  \fi
+  \defaultfontfeatures{Ligatures=TeX,Scale=MatchLowercase}
+\fi
+% use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+% use microtype if available
+\IfFileExists{microtype.sty}{%
+\usepackage{microtype}
+\UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\hypersetup{unicode=true,
+            pdftitle={Skypilot Selection Analyses\_\_PP\_75 - SM\_2.5 Part 2},
+            pdfauthor={Valerie Martin},
+            pdfborder={0 0 0},
+            breaklinks=true}
+\urlstyle{same}  % don't use monospace font for urls
+\usepackage{graphicx,grffile}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+\IfFileExists{parskip.sty}{%
+\usepackage{parskip}
+}{% else
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt plus 2pt minus 1pt}
+}
+\setlength{\emergencystretch}{3em}  % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{0}
+% Redefines (sub)paragraphs to behave more like sections
+\ifx\paragraph\undefined\else
+\let\oldparagraph\paragraph
+\renewcommand{\paragraph}[1]{\oldparagraph{#1}\mbox{}}
+\fi
+\ifx\subparagraph\undefined\else
+\let\oldsubparagraph\subparagraph
+\renewcommand{\subparagraph}[1]{\oldsubparagraph{#1}\mbox{}}
+\fi
+
+%%% Use protect on footnotes to avoid problems with footnotes in titles
+\let\rmarkdownfootnote\footnote%
+\def\footnote{\protect\rmarkdownfootnote}
+
+%%% Change title format to be more compact
+\usepackage{titling}
+
+% Create subtitle command for use in maketitle
+\providecommand{\subtitle}[1]{
+  \posttitle{
+    \begin{center}\large#1\end{center}
+    }
+}
+
+\setlength{\droptitle}{-2em}
+
+  \title{Skypilot Selection Analyses\_\_PP\_75 - SM\_2.5 Part 2}
+    \pretitle{\vspace{\droptitle}\centering\huge}
+  \posttitle{\par}
+    \author{Valerie Martin}
+    \preauthor{\centering\large\emph}
+  \postauthor{\par}
+      \predate{\centering\large\emph}
+  \postdate{\par}
+    \date{8/25/2019}
+
+
+\begin{document}
+\maketitle
+
+\#Skypilot Selection Analyse with 75\% Pollination Percentage and 2.5
+Seed Maturity
+
+\#\#Loading data and creating subsets\ldots{}
+
+'''\{r\} library(ggplot2) library(plyr) library(nlme) library(car)
+library(emmeans) library(multcompView)
+
+fruit \textless{}- read.csv(``Skypilot 2017 (MASTER) Tab3
+08-12-19.csv'', header=T) \# all data included (final)
+fruit\(OtherSeedcount[is.na(fruit\)OtherSeedcount){]} \textless{}- 0
+fruit\(Total.SeedsPerPlant <- fruit\)No.TrmtSeeds+fruit\$OtherSeedcount
+
+cols \textless{}- c(``Site'', ``Habitat'', ``Treatment'',
+``Plant.Number'', ``Morph'', ``No.Pollinated.Total'',
+``Total.RepUnits'', ``Prct.Pollinated'', ``Avg.SepL'', ``Avg.TubeL'',
+``Avg.LobeL'', ``Avg.LobW'', ``Avg.CorollaFlare'', ``No.SeedsPerFruit'',
+``Fruit.Maturity.Rank'', ``Total.SeedsPerFruit'',
+``Total.SeedsPerPlant'') fruit.sm \textless{}- subset(fruit,
+select=cols) \# remove raw data columns
+
+fruit.sm \textless{}- subset(fruit.sm, Avg.CorollaFlare\textgreater{}0)
+\# remove those without flower measurements
+fruit.sm\(Prct.Pollinated <- as.numeric(as.character(fruit.sm\)Prct.Pollinated))
+\# change Prct.Pollinated to numeric (it was a factor) fruit.sm
+\textless{}- subset(fruit.sm, !(Treatment==``Supplementation'' \&
+Prct.Pollinated \textless{} 0.75)) \# remove those supplement flowers
+with \textless{}75\% fruits pollinated fruit.sm \textless{}-
+subset(fruit.sm, Fruit.Maturity.Rank \textless{} 2.5) \# remove fruit
+maturity 2.5 (includes all exlusion as well)
+fruit.sm\(CorollaL <- fruit.sm\)Avg.TubeL +
+fruit.sm\(Avg.LobeL max(fruit.sm\)Total.SeedsPerPlant)
+fruit.sm\(RelativeFitness <- fruit.sm\)Total.SeedsPerPlant/138
+
+fruit.sw \textless{}- subset(fruit.sm, Morph==``Sweet'') \# subst to
+sweet morph only fruit.sw.np \textless{}- subset(fruit.sw, Site \%in\%
+c(``Niwot Ridge'', ``Penn Mountain'')) fruit.sw.nat \textless{}-
+subset(fruit.sw, Treatment==``Natural'') fruit.sw.sup \textless{}-
+subset(fruit.sw, Treatment==``Supplementation'') fruit.nat \textless{}-
+subset(fruit.sm, Treatment==``Natural'') \# subset to natural treatment
+only fruit.sup \textless{}- subset(fruit.sm,
+Treatment==``Supplementation'') \# subset to supplement treatment only
+fruit.np \textless{}- subset(fruit.sm, Site \%in\% c(``Niwot Ridge'',
+``Penn Mountain''))
+
+flwr \textless{}- subset(fruit, Avg.CorollaFlare\textgreater{}0) \#
+remove those without flower measurements flwr.nat \textless{}-
+subset(flwr, Treatment==``Natural'') \# subset to natural treatment only
+'''
+
+\#\#Selection - sweet flowers only \#\#\#Would experience the strongest
+selection and sk flowers biased by habitat (almost exclusively in the
+krummholz). \#\#\#Including Cumberland pass - replication is low but not
+biased.
+
+\#\#\#\#Seeds per plant ''`\{r\}
+qqnorm(fruit.sw.nat\(Total.SeedsPerPlant) qqline(fruit.sw.nat\)Total.SeedsPerPlant)
+hist(fruit.sw.nat\(Total.SeedsPerPlant) qqnorm(sqrt(fruit.sw.nat\)Total.SeedsPerPlant))
+qqline(sqrt(fruit.sw.nat\(Total.SeedsPerPlant)) hist(sqrt(fruit.sw.nat\)Total.SeedsPerPlant))'''
+
+\#\#\#\#Site ''`\{r\}
+anova(lm(sqrt(Total.SeedsPerPlant)\textasciitilde{}Site,
+data=fruit.sw.nat, na.action=na.omit))
+TukeyHSD(aov(sqrt(Total.SeedsPerPlant)\textasciitilde{}Site,
+data=fruit.sw.nat, na.action=na.omit)) ggplot(fruit.sw.nat,
+aes(x=Site,y=Total.SeedsPerPlant)) + geom\_boxplot() + scale\_y\_sqrt()+
+theme\_bw() + theme(panel.grid.major = element\_blank(),
+panel.grid.minor = element\_blank(), text = element\_text(size=20))'''
+
+\#\#\#\#Corolla Flare '''\{r\}
+fit\textless{}-lme(sqrt(Total.SeedsPerPlant)\textasciitilde{}Avg.CorollaFlare,
+random=\textasciitilde{}1\textbar{}Site, data=fruit.sw.nat,
+method=``ML'', na.action=na.omit)\\
+anova.lme(fit) ggplot(fruit.sw.nat,
+aes(x=Avg.CorollaFlare,y=Total.SeedsPerPlant, color=Site)) +
+geom\_point(size=4) + scale\_y\_sqrt()+ ylab(``Seeds per plant'') +
+xlab(``Corolla flare'') +\\
+geom\_hline(yintercept=0) + theme\_bw() + theme(panel.grid.major =
+element\_blank(), panel.grid.minor = element\_blank(), text =
+element\_text(size=20), legend.position = ``top'')
+fit\textless{}-lm(sqrt(Total.SeedsPerPlant)\textasciitilde{}Avg.CorollaFlare*Site,
+data=fruit.sw.nat, na.action=na.omit)\\
+Anova(fit, type=``III'') '''
+
+\#\#\#\#Tube Length '''\{r\}
+fit\textless{}-lme(sqrt(Total.SeedsPerPlant)\textasciitilde{}Avg.TubeL,
+random=\textasciitilde{}1\textbar{}Site, data=fruit.sw.nat,
+method=``ML'', na.action=na.omit)\\
+anova.lme(fit) ggplot(fruit.sw.nat,
+aes(x=Avg.TubeL,y=Total.SeedsPerPlant, color=Site)) +
+geom\_point(size=4) + scale\_y\_sqrt()+ ylab(``Seeds per plant'') +
+xlab(``Tube length'') +\\
+geom\_hline(yintercept=0) + theme\_bw() + theme(panel.grid.major =
+element\_blank(), panel.grid.minor = element\_blank(), text =
+element\_text(size=20), legend.position = ``top'')
+fit\textless{}-lm(sqrt(Total.SeedsPerPlant)\textasciitilde{}Avg.TubeL*Site,
+data=fruit.sw.nat, na.action=na.omit)\\
+Anova(fit, type=``III'') '''
+
+\#\#\#Flower measurements combined via PCA \#\#\#\#Flower measurements
+combined via PCA - Tube Length ''`\{r\}
+cor(fruit.sw.nat\(Avg.CorollaFlare,fruit.sw.nat\)Avg.TubeL)
+cor.test(fruit.sw.nat\(Avg.CorollaFlare,fruit.sw.nat\)Avg.TubeL)
+plot(fruit.sw.nat\(Avg.CorollaFlare,fruit.sw.nat\)Avg.TubeL) measures
+\textless{}- c(``Avg.CorollaFlare'', ``Avg.TubeL'')
+flwr.size\textless{}-as.matrix(subset(fruit.sw.nat, select=measures))
+pc\textless{}-princomp(flwr.size)
+pc\textless{}-prcomp(flwr.size,center=TRUE) print(pc) plot(pc,
+type=``l'') summary(pc) pc.extracted \textless{}-
+as.data.frame(predict(pc, newdata=fruit.sw.nat))
+fruit.sw.nat\(PC1 <- pc.extracted\)PC1'''
+
+\#\#\#\#Flower measurement combined via PCA - Corolla Length '''\{r\}
+fruit.sw.nat\(CorollaL <- fruit.sw.nat\)Avg.TubeL +
+fruit.sw.nat\(Avg.LobeL cor(fruit.sw.nat\)Avg.CorollaFlare,fruit.sw.nat\(CorollaL) cor.test(fruit.sw.nat\)Avg.CorollaFlare,fruit.sw.nat\(CorollaL) plot(fruit.sw.nat\)Avg.CorollaFlare,fruit.sw.nat\$CorollaL)
+
+measures \textless{}- c(``CorollaL'', ``Avg.CorollaFlare'')
+flwr.size\textless{}-as.matrix(subset(fruit.sw.nat, select=measures))
+pc\textless{}-prcomp(flwr.size,center=TRUE) print(pc) plot(pc,
+type=``l'') summary(pc) pc.extracted \textless{}-
+as.data.frame(predict(pc, newdata=fruit.sw.nat))
+fruit.sw.nat\(PC1.cl <- pc.extracted\)PC1 '''
+
+\#\#\#\#Flower measurements combined via pca (all 4 traits - same as
+pressed) '''\{r\} measures \textless{}- c(``Avg.CorollaFlare'',
+``Avg.TubeL'', ``Avg.LobeL'', ``Avg.LobW'')
+flwr.size\textless{}-as.matrix(subset(fruit.sw.nat, select=measures))
+pc\textless{}-prcomp(flwr.size,center=TRUE) print(pc) plot(pc,
+type=``l'') summary(pc) pc.extracted \textless{}-
+as.data.frame(predict(pc, newdata=fruit.sw.nat)) \#\#\#\#\# Inverted PC1
+when added to the df, because all loadings were negative. This way,
+larger PC denotes a larger flower.
+fruit.sw.nat\(PC1.all <- -pc.extracted\)PC1
+
+\#\#\#\#Total seedset per plant (annual fecundity) '''\{r\}
+fit\textless{}-lme(sqrt(Total.SeedsPerPlant)\textasciitilde{}PC1.all,
+random=\textasciitilde{}1\textbar{}Site, data=fruit.sw.nat,
+method=``ML'', na.action=na.omit)\\
+anova.lme(fit) ggplot(fruit.sw.nat, aes(x=PC1,y=Total.SeedsPerPlant,
+color=Site)) + geom\_point(size=4) + scale\_y\_sqrt()+ ylab(``Seeds per
+plant'') + xlab(``PC1'') +\\
+geom\_hline(yintercept=0) + theme\_bw() + theme(panel.grid.major =
+element\_blank(), panel.grid.minor = element\_blank(), text =
+element\_text(size=20), legend.position = ``top'')
+
+fit\textless{}-lme(sqrt(Total.SeedsPerPlant)\textasciitilde{}PC1.cl,
+random=\textasciitilde{}1\textbar{}Site, data=fruit.sw.nat,
+method=``ML'', na.action=na.omit)\\
+anova.lme(fit) '''
+
+\#\#\#\#Relative fecundity (standardized by max annual fecundity)
+'''\{r\}
+max(fruit.sw.nat\(Total.SeedsPerPlant) fruit.sw.nat\)RelativeFitness
+\textless{}- fruit.sw.nat\$Total.SeedsPerPlant/138
+
+qqnorm(fruit.sw.nat\(RelativeFitness) qqline(fruit.sw.nat\)RelativeFitness)
+hist(fruit.sw.nat\(RelativeFitness) qqnorm(sqrt(fruit.sw.nat\)RelativeFitness))
+qqline(sqrt(fruit.sw.nat\(RelativeFitness)) hist(sqrt(fruit.sw.nat\)RelativeFitness))
+
+fit\textless{}-lme(sqrt(RelativeFitness)\textasciitilde{}PC1,
+random=\textasciitilde{}1\textbar{}Site, data=fruit.sw.nat,
+method=``ML'', na.action=na.omit)\\
+anova.lme(fit) ggplot(fruit.sw.nat, aes(x=PC1,y=RelativeFitness)) +
+geom\_point(size=2) + scale\_y\_sqrt()+
+scale\_colour\_manual(values=c(``black'')) + ylab(``Relative fitness'')
++ xlab(``PC1'') +\\
+geom\_hline(yintercept=0) + theme\_bw() + theme(panel.grid.major =
+element\_blank(), panel.grid.minor = element\_blank(), text =
+element\_text(size=20))
+
+fit\textless{}-lme(sqrt(RelativeFitness)\textasciitilde{}PC1.cl,
+random=\textasciitilde{}1\textbar{}Site, data=fruit.sw.nat,
+method=``ML'', na.action=na.omit)\\
+anova.lme(fit) ggplot(fruit.sw.nat, aes(x=PC1.cl,y=RelativeFitness)) +
+geom\_point(size=2) + scale\_y\_sqrt()+
+scale\_colour\_manual(values=c(``black'')) + xlim(-1,1) +
+ylab(``Relative fitness'') + xlab(``PC1'') +\\
+geom\_hline(yintercept=0) + theme\_bw() + theme(panel.grid.major =
+element\_blank(), panel.grid.minor = element\_blank(), text =
+element\_text(size=20))
+
+fit\textless{}-lme(sqrt(RelativeFitness)\textasciitilde{}Avg.CorollaFlare,
+random=\textasciitilde{}1\textbar{}Site, data=fruit.sw.nat,
+method=``ML'', na.action=na.omit)\\
+anova.lme(fit) ggplot(fruit.sw.nat, aes(x=CorollaL,y=RelativeFitness)) +
+geom\_point(size=2) + scale\_y\_sqrt()+ ylab(``Relative fitness'') +
+xlab(``Corolla flare (cm)'') +\\
+geom\_hline(yintercept=0) + theme\_bw() + theme(panel.grid.major =
+element\_blank(), panel.grid.minor = element\_blank(), text =
+element\_text(size=20))
+
+fit\textless{}-lme(sqrt(RelativeFitness)\textasciitilde{}CorollaL,
+random=\textasciitilde{}1\textbar{}Site, data=fruit.sw.nat,
+method=``ML'', na.action=na.omit)\\
+anova.lme(fit) ggplot(fruit.sw.nat, aes(x=CorollaL,y=RelativeFitness)) +
+geom\_point(size=2) + scale\_y\_sqrt()+ ylab(``Relative fitness'') +
+xlab(``Corolla length (cm)'') +\\
+geom\_hline(yintercept=0) + theme\_bw() + theme(panel.grid.major =
+element\_blank(), panel.grid.minor = element\_blank(), text =
+element\_text(size=20))
+
+fit\textless{}-lme(sqrt(RelativeFitness)\textasciitilde{}Avg.TubeL,
+random=\textasciitilde{}1\textbar{}Site, data=fruit.sw.nat,
+method=``ML'', na.action=na.omit)\\
+anova.lme(fit) ggplot(fruit.sw.nat, aes(x=Avg.TubeL,y=RelativeFitness))
++ geom\_point(size=2) + scale\_y\_sqrt()+ ylab(``Relative fitness'') +
+xlab(``Flower tube length (cm)'') +\\
+geom\_hline(yintercept=0) + theme\_bw() + theme(panel.grid.major =
+element\_blank(), panel.grid.minor = element\_blank(), text =
+element\_text(size=20)) '''
+
+\#\#\#With supplementation treatment \#\#\#\#\#(treatment was more
+effective for larger flowers\ldots{}Jake swears flwr size didn't affect
+the trmt)
+
+\#\#\#\#Total seedset per plant '''\{r\}
+qqnorm(fruit.sw\(Total.SeedsPerPlant) qqline(fruit.sw\)Total.SeedsPerPlant)
+hist(fruit.sw\(Total.SeedsPerPlant) qqnorm(sqrt(fruit.sw\)Total.SeedsPerPlant))
+qqline(sqrt(fruit.sw\(Total.SeedsPerPlant)) hist(sqrt(fruit.sw\)Total.SeedsPerPlant))
+
+fit\textless{}-lme(sqrt(Total.SeedsPerPlant)\textasciitilde{}Treatment*Avg.CorollaFlare,
+random=\textasciitilde{}1\textbar{}Site/Habitat, data=fruit.sw,
+method=``ML'', na.action=na.omit)\\
+anova.lme(fit) summary(fit) ggplot(fruit.sw,
+aes(x=Avg.CorollaFlare,y=Total.SeedsPerPlant, color=Treatment,
+shape=Treatment)) + scale\_shape\_manual(values=c(16,17)) +
+geom\_point(size=4) + scale\_y\_sqrt()+
+scale\_colour\_manual(values=c(``blue'', ``red'')) +
+geom\_smooth(method=`lm', fill=NA) + theme\_bw() +
+theme(panel.grid.major = element\_blank(), panel.grid.minor =
+element\_blank(), text = element\_text(size=20))
+fit\textless{}-lme(sqrt(Total.SeedsPerPlant)\textasciitilde{}Avg.CorollaFlare,
+random=\textasciitilde{}1\textbar{}Site/Habitat, data=fruit.sw.nat,
+method=``ML'', na.action=na.omit)\\
+anova.lme(fit)
+fit\textless{}-lme(sqrt(Total.SeedsPerPlant)\textasciitilde{}Avg.CorollaFlare,
+random=\textasciitilde{}1\textbar{}Site/Habitat, data=fruit.sw.sup,
+method=``ML'', na.action=na.omit)\\
+anova.lme(fit)
+
+fit\textless{}-lme(sqrt(Total.SeedsPerPlant)\textasciitilde{}Treatment\emph{Avg.TubeL,
+random=\textasciitilde{}1\textbar{}Site/Habitat, data=fruit.sw,
+method=``ML'', na.action=na.omit)\\
+anova.lme(fit)
+fit\textless{}-lme(sqrt(Total.SeedsPerPlant)\textasciitilde{}Treatment}CorollaL,
+random=\textasciitilde{}1\textbar{}Site/Habitat, data=fruit.sw,
+method=``ML'', na.action=na.omit)\\
+anova.lme(fit) '''
+
+\hypertarget{relative-fitness}{%
+\paragraph{Relative fitness}\label{relative-fitness}}
+
+'''\{r\}
+fit\textless{}-lme(sqrt(RelativeFitness)\textasciitilde{}Treatment\emph{Avg.CorollaFlare,
+random=\textasciitilde{}1\textbar{}Site, data=fruit.sw, method=``ML'',
+na.action=na.omit)\\
+anova.lme(fit)
+fit\textless{}-lme(sqrt(RelativeFitness)\textasciitilde{}Treatment}Avg.CorollaFlare,
+random=\textasciitilde{}1\textbar{}Site, data=fruit.sw, method=``ML'',
+na.action=na.omit)\\
+anova.lme(fit)
+fit\textless{}-lme(sqrt(RelativeFitness)\textasciitilde{}Treatment*Avg.CorollaFlare,
+random=\textasciitilde{}1\textbar{}Site, data=fruit.sw, method=``ML'',
+na.action=na.omit)\\
+anova.lme(fit) '''
+
+\#\#\#\#Seeds per fruit '''\{r\}
+qqnorm(fruit.sw\(No.SeedsPerFruit) qqline(fruit.sw\)No.SeedsPerFruit)
+hist(fruit.sw\(No.SeedsPerFruit) qqnorm(sqrt(fruit.sw\)No.SeedsPerFruit))
+qqline(sqrt(fruit.sw\(No.SeedsPerFruit)) hist(sqrt(fruit.sw\)No.SeedsPerFruit))
+
+fit\textless{}-lme(sqrt(No.SeedsPerFruit)\textasciitilde{}Treatment*Avg.CorollaFlare,
+random=\textasciitilde{}1\textbar{}Site/Habitat, data=fruit.sw,
+method=``ML'', na.action=na.omit)\\
+anova.lme(fit) summary(fit)
+
+ggplot(fruit.sw, aes(x=Avg.CorollaFlare,y=No.SeedsPerFruit,
+color=Treatment, shape=Treatment)) +
+scale\_shape\_manual(values=c(16,17)) + geom\_point(size=4) +
+scale\_y\_sqrt()+ scale\_colour\_manual(values=c(``blue'', ``red'')) +
+geom\_smooth(method=`lm', fill=NA) + theme\_bw() +
+theme(panel.grid.major = element\_blank(), panel.grid.minor =
+element\_blank(), text = element\_text(size=20))
+
+fit\textless{}-lme(sqrt(No.SeedsPerFruit)\textasciitilde{}Treatment*Avg.TubeL,
+random=\textasciitilde{}1\textbar{}Site/Habitat, data=fruit.sw,
+method=``ML'', na.action=na.omit)\\
+anova.lme(fit) summary(fit)
+
+fit\textless{}-lme(sqrt(No.SeedsPerFruit)\textasciitilde{}Treatment*Avg.LobW,
+random=\textasciitilde{}1\textbar{}Site/Habitat, data=fruit.sw,
+method=``ML'')\\
+anova.lme(fit) summary(fit)
+
+fit\textless{}-lme(sqrt(No.SeedsPerFruit)\textasciitilde{}Treatment*Avg.LobeL,
+random=\textasciitilde{}1\textbar{}Site/Habitat, data=fruit.sw,
+method=``ML'')\\
+anova.lme(fit) summary(fit) '''
+
+\#\#\#Both morphs: natural treatment only \#\#\#\#Seeds per plant
+\#\#\#\#\#Without supplementation treatment '''\{r\}
+qqnorm(fruit.nat\(Total.SeedsPerPlant) qqline(fruit.nat\)Total.SeedsPerPlant)
+hist(fruit.nat\(Total.SeedsPerPlant) qqnorm(sqrt(fruit.nat\)Total.SeedsPerPlant))
+qqline(sqrt(fruit.nat\(Total.SeedsPerPlant)) hist(sqrt(fruit.nat\)Total.SeedsPerPlant))
+
+\#\#\#\#Site anova(lm(sqrt(Total.SeedsPerPlant)\textasciitilde{}Morph,
+data=fruit.nat, na.action=na.omit))
+anova(lm(sqrt(Total.SeedsPerPlant)\textasciitilde{}Site, data=fruit.nat,
+na.action=na.omit))
+TukeyHSD(aov(sqrt(Total.SeedsPerPlant)\textasciitilde{}Site,
+data=fruit.nat, na.action=na.omit)) ggplot(fruit.nat,
+aes(x=Site,y=No.SeedsPerFruit)) + geom\_boxplot() + scale\_y\_sqrt()+
+theme\_bw() + theme(panel.grid.major = element\_blank(),
+panel.grid.minor = element\_blank(), text = element\_text(size=20))
+\#corolla flare
+fit\textless{}-lme(sqrt(Total.SeedsPerPlant)\textasciitilde{}Avg.CorollaFlare\emph{Morph,
+random=\textasciitilde{}1\textbar{}Site, data=fruit.nat, method=``ML'',
+na.action=na.omit)\\
+anova.lme(fit) \#tube length
+fit\textless{}-lme(sqrt(Total.SeedsPerPlant)\textasciitilde{}Avg.TubeL}Morph,
+random=\textasciitilde{}1\textbar{}Site, data=fruit.nat, method=``ML'',
+na.action=na.omit)\\
+anova.lme(fit) '''
+
+\#\#\#\#Flower measurements combined via pca (all 4 traits - same as
+pressed) '''\{r\} measures \textless{}- c(``Avg.CorollaFlare'',
+``Avg.TubeL'', ``Avg.LobeL'', ``Avg.LobW'')
+flwr.size\textless{}-as.matrix(subset(fruit.nat, select=measures))
+pc\textless{}-prcomp(flwr.size,center=TRUE) print(pc) plot(pc,
+type=``l'') summary(pc) pc.extracted \textless{}-
+as.data.frame(predict(pc, newdata=fruit.nat))
+fruit.nat\(PC1.all <- pc.extracted\)PC1 \# annual fecundity
+fit\textless{}-lme(sqrt(Total.SeedsPerPlant)\textasciitilde{}PC1.all*Morph,
+random=\textasciitilde{}1\textbar{}Site, data=fruit.nat, method=``ML'',
+na.action=na.omit)\\
+anova.lme(fit)
+
+ggplot(fruit.nat, aes(x=Avg.CorollaFlare,y=No.SeedsPerFruit,
+color=Morph, shape=Treatment)) + scale\_shape\_manual(values=c(16,17)) +
+geom\_point(size=4) + scale\_y\_sqrt()+
+scale\_colour\_manual(values=c(``blue'', ``red'')) + theme\_bw() +
+theme(panel.grid.major = element\_blank(), panel.grid.minor =
+element\_blank(), text = element\_text(size=20)) '''
+
+\#\#\#All morphs: site, habitat and morph are random effects\ldots{}
+\#\#\#\#Seeds per fruit '''\{r\}
+qqnorm(fruit.sm\(No.SeedsPerFruit) qqline(fruit.sm\)No.SeedsPerFruit)
+hist((fruit.sm\(No.SeedsPerFruit)) hist(sqrt(fruit.sm\)No.SeedsPerFruit))
+qqnorm(sqrt(fruit.sm\(No.SeedsPerFruit)) qqline(sqrt(fruit.sm\)No.SeedsPerFruit))
+
+fit\textless{}-lme(sqrt(No.SeedsPerFruit)\textasciitilde{}Treatment*Avg.CorollaFlare,
+random=\textasciitilde{}1\textbar{}Site/Habitat/Morph, data=fruit.sm,
+method=``ML'', na.action=na.omit)\\
+anova.lme(fit) summary(fit) \# sign. dif by treatment but difficult to
+interpret figures, if transformed looks like both go up with corolla
+flare and only intercept is different\ldots{} fruit.nat \textless{}-
+subset(fruit.sm, Treatment==``Natural'') fruit.sup \textless{}-
+subset(fruit.sm, Treatment==``Supplementation'')
+
+fit\textless{}-lme(sqrt(No.SeedsPerFruit)\textasciitilde{}Avg.CorollaFlare,
+random=\textasciitilde{}1\textbar{}Site/Habitat, data=fruit.nat,
+method=``ML'') anova.lme(fit)
+fit\textless{}-lme(sqrt(No.SeedsPerFruit)\textasciitilde{}Avg.CorollaFlare,
+random=\textasciitilde{}1\textbar{}Site/Habitat, data=fruit.sup,
+method=``ML'') anova.lme(fit)
+
+fit\textless{}-lme(sqrt(No.SeedsPerFruit)\textasciitilde{}Treatment*Avg.TubeL,
+random=\textasciitilde{}1\textbar{}Site/Habitat/Morph, data=fruit.sm,
+method=``ML'')\\
+anova.lme(fit) summary(fit)
+
+fit\textless{}-lme(sqrt(No.SeedsPerFruit)\textasciitilde{}Avg.LobeL,
+random=\textasciitilde{}1\textbar{}Site/Habitat/Morph, data=fruit.nat,
+method=``ML'')\\
+anova.lme(fit) summary(fit)
+
+ggplot(fruit.sm, aes(x=Avg.CorollaFlare,y=No.SeedsPerFruit,
+color=Treatment, shape=Treatment)) + geom\_point(size=4) +
+scale\_colour\_manual(values=c(``blue'', ``red'')) + xlim(0.8,2.4) +
+ylim(0,15) + geom\_smooth(method=`lm', aes(linetype=Treatment), fill=NA)
++ ylab(``Number of seeds per fruit'') + xlab(``Corolla Flare (cm)'') +
+geom\_hline(yintercept=0, linetype=``dashed'') + theme\_bw() +
+theme(panel.grid.major = element\_blank(), panel.grid.minor =
+element\_blank(), text = element\_text(size=20)) ggplot(fruit.sm,
+aes(x=Avg.CorollaFlare,y=No.SeedsPerFruit, color=Treatment,
+shape=Treatment)) + geom\_point(size=4) +
+scale\_y\_continuous(limits=c(0,15), trans=``sqrt'') + xlim(0.8,2.4) +
+scale\_colour\_manual(values=c(``blue'', ``red'')) +
+geom\_smooth(method=`lm', aes(linetype=Treatment), fill=NA) +
+ylab(``Number of seeds per fruit'') + xlab(``Corolla Flare (cm)'') +
+geom\_hline(yintercept=0, linetype=``dashed'') + theme\_bw() +
+theme(panel.grid.major = element\_blank(), panel.grid.minor =
+element\_blank(), text = element\_text(size=20))
+
+ggplot(fruit.sm, aes(x=Avg.TubeL,y=No.SeedsPerFruit, color=Treatment,
+shape=Treatment)) + geom\_point(size=4) +
+scale\_y\_continuous(limits=c(0,15), trans=``sqrt'') +
+scale\_colour\_manual(values=c(``blue'', ``red'')) + ylab(``Number of
+seeds per fruit'') + xlab(``Tube Length (cm)'') +
+geom\_hline(yintercept=0, linetype=``dashed'') + theme\_bw() +
+theme(panel.grid.major = element\_blank(), panel.grid.minor =
+element\_blank(), text = element\_text(size=20))
+
+ggplot(fruit.sm, aes(x=Avg.LobeL,y=No.SeedsPerFruit, color=Treatment,
+shape=Treatment)) + geom\_point(size=4) + scale\_y\_sqrt()+
+scale\_colour\_manual(values=c(``blue'', ``red'')) +
+geom\_smooth(method=`lm', fill=NA) + theme\_bw() +
+theme(panel.grid.major = element\_blank(), panel.grid.minor =
+element\_blank(), text = element\_text(size=20)) '''
+
+\#\#\#Add tube length and lobe length to get corolla length '''\{r\}
+fruit.sm\(CorollaL <- fruit.sm\)Avg.TubeL + fruit.sm\$Avg.TubeL
+fit\textless{}-lme(sqrt(No.SeedsPerFruit)\textasciitilde{}Treatment*CorollaL,
+random=\textasciitilde{}1\textbar{}Site/Habitat/Morph, data=fruit.sm,
+method=``ML'')\\
+anova.lme(fit) summary(fit) '''
+
+\#\#\#\#Seeds per plant '''\{r\}
+qqnorm(fruit.sm\(Total.SeedsPerPlant) qqline(fruit.sm\)Total.SeedsPerPlant)
+hist(fruit.sm\(Total.SeedsPerPlant) qqnorm(sqrt(fruit.sm\)Total.SeedsPerPlant))
+qqline(sqrt(fruit.sm\(Total.SeedsPerPlant)) hist(sqrt(fruit.sm\)Total.SeedsPerPlant))
+
+fit\textless{}-lme(sqrt(Total.SeedsPerPlant)\textasciitilde{}Treatment*Avg.CorollaFlare,
+random=\textasciitilde{}1\textbar{}Site/Habitat/Morph, data=fruit.sm,
+method=``ML'', na.action=na.omit)\\
+anova.lme(fit) summary(fit)
+
+fit\textless{}-lme(sqrt(Total.SeedsPerPlant)\textasciitilde{}Treatment*Avg.TubeL,
+random=\textasciitilde{}1\textbar{}Site/Habitat/Morph, data=fruit.sm,
+method=``ML'', na.action=na.omit)\\
+anova.lme(fit) summary(fit) '''
+
+\#\#FLOWER SIZE by habitat and morph \#\#\#Notes from Niki's last
+analysis: \#\#\#\#\#no difference in flower size by scent morph or
+habitat =\textgreater{} sweet and skunky have the same size flowers
+\#\#\#\#\#\# flowers are cumberland pass are smaller than niwot ridge \&
+penn mountain. \#\#\#\#\#This parallels differences in seed set, but
+when we test for a direct relationship via regression (see below), there
+is no difference \#\#\#\#\#Perhaps it has more to do with a weather
+effect, since selection doesn't vary among sites??? {[}stilll need to
+verify this last statement{]}
+
+'''\{r\}
+qqnorm(flwr.nat\(Avg.CorollaFlare) qqline(flwr.nat\)Avg.CorollaFlare)
+hist(flwr.nat\$Avg.CorollaFlare)
+
+fit\textless{}-lm(Avg.CorollaFlare\textasciitilde{}Site, data=flwr.nat,
+na.action=na.omit)\\
+anova(fit) TukeyHSD(aov(Avg.CorollaFlare\textasciitilde{}Site,
+data=flwr.nat, na.action=na.omit)) ggplot(flwr.nat,
+aes(x=Site,y=Avg.CorollaFlare)) + geom\_boxplot() + theme\_bw() +
+theme(panel.grid.major = element\_blank(), panel.grid.minor =
+element\_blank(), text = element\_text(size=20))
+fit\textless{}-lme(Avg.CorollaFlare\textasciitilde{}Site,
+random=\textasciitilde{}1\textbar{}Morph, data=flwr.nat, method=``ML'',
+na.action=na.omit)\\
+anova.lme(fit)
+fit\textless{}-lme(Avg.CorollaFlare\textasciitilde{}Habitat\emph{Morph,
+random=\textasciitilde{}1\textbar{}Site, data=flwr.nat, method=``ML'',
+na.action=na.omit)\\
+anova.lme(fit)
+fit\textless{}-lm(Avg.CorollaFlare\textasciitilde{}Site}Morph,
+data=flwr.nat, na.action=na.omit)\\
+Anova(fit,type=``III'')
+fit\textless{}-lm(Avg.CorollaFlare\textasciitilde{}Site\emph{Morph}Habitat,
+data=flwr.nat, na.action=na.omit)\\
+anova(fit) \# unbalanced, so cannot run type 3.
+
+qqnorm(flwr.nat\(Avg.TubeL) qqline(flwr.nat\)Avg.TubeL)
+hist(flwr.nat\$Avg.TubeL)
+fit\textless{}-lm(Avg.TubeL\textasciitilde{}Site, data=flwr.nat,
+na.action=na.omit)\\
+anova(fit)
+fit\textless{}-lme(Avg.TubeL\textasciitilde{}Habitat\emph{Morph,
+random=\textasciitilde{}1\textbar{}Site, data=flwr.nat, method=``ML'',
+na.action=na.omit)\\
+anova.lme(fit) fit\textless{}-lm(Avg.TubeL\textasciitilde{}Site}Morph,
+data=flwr.nat, na.action=na.omit)\\
+Anova(fit,type=``III'')
+fit\textless{}-lm(Avg.TubeL\textasciitilde{}Site\emph{Morph}Habitat,
+data=flwr.nat, na.action=na.omit)\\
+anova(fit)\# unbalanced, so cannot run type 3.
+
+measures \textless{}- c(``Avg.CorollaFlare'', ``Avg.TubeL'',
+``Avg.LobeL'', ``Avg.LobW'')
+flwr.size\textless{}-as.matrix(subset(flwr.nat, select=measures))
+pc\textless{}-prcomp(flwr.size,center=TRUE) print(pc) plot(pc,
+type=``l'') summary(pc) pc.extracted \textless{}-
+as.data.frame(predict(pc, newdata=flwr.nat))
+flwr.nat\(PC1.all <- pc.extracted\)PC1
+qqnorm(flwr.nat\(PC1.all) qqline(flwr.nat\)PC1.all)
+fit\textless{}-lm(PC1.all\textasciitilde{}Site, data=flwr.nat,
+na.action=na.omit)\\
+anova(fit) ggplot(flwr.nat, aes(x=Site,y=PC1.all)) + geom\_boxplot() +
+theme\_bw() + theme(panel.grid.major = element\_blank(),
+panel.grid.minor = element\_blank(), text = element\_text(size=20))
+fit\textless{}-lme(PC1.all\textasciitilde{}Habitat\emph{Morph,
+random=\textasciitilde{}1\textbar{}Site, data=flwr.nat, method=``ML'',
+na.action=na.omit)\\
+anova.lme(fit) fit\textless{}-lm(PC1.all\textasciitilde{}Site}Morph,
+data=flwr.nat, na.action=na.omit)\\
+Anova(fit,type=``III'') '''
+
+
+\end{document}

@@ -1,0 +1,139 @@
+---
+title: "ClusterAnalysis__Skunky_vs_Sweet"
+author: "Valerie Martin"
+date: "10/27/2019"
+output: word_document
+---
+
+```{r}
+setwd("~/Desktop/Skypilot 2017")
+library(ggplot2)
+library(plyr)
+library(nlme)
+library(car)
+library(emmeans)
+library(multcompView)
+library(multcomp)
+library(tidyverse)  
+library(cluster)    
+library(factoextra) 
+
+stigma <- read.csv("Skypilot 2017 (MASTER) Tab2 08-12-19__Purity added.csv")
+cols <- c("Specimen.No.", "Year", "Era", "Species", "Scent.Morph", "Date", "Location", "Altitude..m.",
+          "Habitat..NMS.", "Corolla.Flare_1", "Sepal.Length_1", "Tube.Length_1", "Lobe.Length_1", "Lobe.Width_1", 
+          "No.PVgrains_stigma", "No.PVgrains_off", "No.OtherGrains", "No.OtherTypes")
+stigma.sm <- subset(stigma, select = cols)
+
+#-----# summarize data & add columns where appropriate#-----#
+ddply(stigma.sm, .(Era,Location, Altitude..m., Scent.Morph), summarise, con=mean(No.PVgrains_stigma, na.rm=T), het=mean(No.OtherGrains, na.rm=T))
+
+stigma.sm$No.TotalPVgrains <- stigma.sm$No.PVgrains_stigma + stigma.sm$No.PVgrains_off
+stigma.sm$Purity.tot <- stigma.sm$No.TotalPVgrains/(stigma.sm$No.TotalPVgrains + stigma.sm$No.OtherGrains)
+stigma.sm$Purity.tot <- as.numeric(as.character(stigma.sm$Purity.tot))
+stigma.sm$Purity.on <- stigma.sm$No.PVgrains_stigma/(stigma.sm$No.PVgrains_stigma + stigma.sm$No.OtherGrains)
+stigma.sm$Corolla.Length <- stigma.sm$Tube.Length_1 + stigma.sm$Lobe.Length_1
+
+#-----# subsets for analysis #-----#
+# subset to complete cases
+stigma.sm <- subset(stigma.sm, stigma.sm$Corolla.Flare_1 > 0 & stigma.sm$Sepal.Length_1 > 0 & stigma.sm$Tube.Length_1 > 0 & 
+                      stigma.sm$Lobe.Length_1 >0 & stigma.sm$Lobe.Width_1 >0) #eliminates all flowers without complete measurements
+# subset by morph
+stigma.sw <- subset(stigma.sm, Scent.Morph =="Sweet") #subset to sweet morph
+stigma.sk <- subset(stigma.sm, Scent.Morph =="Skunky") #subset to skunky morph
+nohab <- subset(stigma.sm, select = -c(stigma$Habitat..NMS.)) #subset to eliminate habitat
+stigma.new <- subset(stigma.sm, Era == "present") #selects for new era
+stigma.sw.new <- subset(stigma.sw, Era == "present") #selects for new sweet
+stigma.sw$No.Totalgrains <- stigma.sw$No.TotalPVgrains+stigma.sw$No.OtherGrains
+stigma.sk.new <- subset(stigma.sk, Era == "present") #selects for new skunky
+stigma.sk$No.Totalgrains <- stigma.sk$No.TotalPVgrains+stigma.sk$No.OtherGrains
+```
+
+## Cluster analysis using k-clustering
+#### In k-clustering, we choose the number of clusters
+Based on tips I found on this website: 
+https://uc-r.github.io/kmeans_clustering
+
+#### Here we see that there are two outliers, individuals 49 and 120.  
+These appear to be simply larger flowers, not necessarily abnormal (I changed an outlier initially found that had a sepal length of 131 - this was changed in the CSV file to 1.31)
+
+```{r}
+stigma.new.flwrSizeOnly <- subset(stigma.new, select = c("Corolla.Flare_1", "Sepal.Length_1", "Tube.Length_1", "Lobe.Length_1", "Lobe.Width_1"))
+
+str(stigma.new.flwrSizeOnly)
+
+stigma.new.flwrSizeScaled <- scale(stigma.new.flwrSizeOnly)
+
+distance <- get_dist(stigma.new.flwrSizeScaled)
+fviz_dist(distance, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
+
+k2 <- kmeans(stigma.new.flwrSizeScaled, centers = 2, nstart = 25)
+str(k2)
+k2
+fviz_cluster(k2, data = stigma.new.flwrSizeScaled)
+
+k2 <- kmeans(stigma.new.flwrSizeScaled, centers = 4, nstart = 25)
+fviz_cluster(k2, data = stigma.new.flwrSizeScaled)
+```
+
+#### As I have to choose the number of cluster groups, I attempted to look at the sum of squares found for several values of k.  
+
+There was not a clear "elbow" here, demarcating which k value would give us the lowest sum of squares for the lowest k-value... so I chose to try another method (hierarchical clustering below).
+```{r} 
+wss <- function(k) {
+  kmeans(stigma.new.flwrSizeScaled, k, nstart = 10 )$tot.withinss
+}
+k.values <- 1:15
+wss_values <- map_dbl(k.values, wss)
+
+plot(k.values, wss_values,
+     type="b", pch = 19, frame = FALSE, 
+     xlab="Number of clusters K",
+     ylab="Total within-clusters sum of squares")
+
+fviz_nbclust(stigma.new.flwrSizeScaled, kmeans, method = "wss")
+```
+
+
+#### Hierarchical clustering method
+
+Reference website: https://uc-r.github.io/hc_clustering
+
+Here, I compare different types of hierarchical clustering methods to establish which has the largest cluster structure value.  The Ward method seems to work best, so I look at how many individuals are in each of the two largest clusters.
+```{r}
+m <- c( "average", "single", "complete", "ward")
+names(m) <- c( "average", "single", "complete", "ward")
+
+# function to compute coefficient
+ac <- function(x) {
+  agnes(stigma.new.flwrSizeScaled, method = x)$ac
+}
+
+map_dbl(m, ac)
+
+hc3 <- agnes(stigma.new.flwrSizeScaled, method = "ward")
+pltree(hc3, cex = 0.6, hang = -1, main = "Dendrogram of agnes") 
+
+
+# Cut tree into 2 groups
+sub_grp <- cutree(hc3, k = 2)
+
+# Number of members in each cluster
+table(sub_grp)
+
+
+fviz_cluster(list(data = stigma.new.flwrSizeScaled, cluster = sub_grp))
+```
+
+#### Before I go any further, I wanted to discuss the following from the "Additional Comments" section in the hierarchical clustering tutorial: 
+
+"Clustering can be a very useful tool for data analysis in the unsupervised setting. However, there are a number of issues that arise in performing clustering. In the case of hierarchical clustering, we need to be concerned about:
+
+What dissimilarity measure should be used?
+What type of linkage should be used?
+Where should we cut the dendrogram in order to obtain clusters?
+Each of these decisions can have a strong impact on the results obtained. In practice, we try several different choices, and look for the one with the most useful or interpretable solution. With these methods, there is no single right answer - any solution that exposes some interesting aspects of the data should be considered."
+
+I looked at Euclidian distances (the automatic dissimilarity measure built into these functions) and a Ward linkage type.
+
+
+I'm also not sure how to plot these clusters out while also showing whether the points are from sweet or skunky individuals.  I'm thinking I could assign colors?  Since I had to remove "Sweet" and "Skunky" from the stigma.new.FlwrSizeOnly dataset, I'm not sure how to go back and plot out these variables with the new dataset. 

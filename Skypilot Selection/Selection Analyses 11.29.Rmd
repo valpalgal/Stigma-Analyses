@@ -1,0 +1,95 @@
+---
+title: "Selection Analyses 11.29"
+author: "Valerie Martin"
+date: "11/29/2019"
+output:
+  word_document: default
+  html_document: default
+---
+
+## Skypilot Selection Analyses with 75% Pollination Percentage and 2.5 Seed Maturity
+### Looking at combined PCA for natural flowers and Total Seeds/Plant by Size*Morph
+#### (directly comparing these analyses to those from the stigma analyses)
+
+#### Loading data and creating subsets...
+
+
+```{r include=FALSE}
+setwd("~/Desktop/Skypilot 2017/Skypilot Selection")
+library(ggplot2)
+library(plyr)
+library(nlme)
+library(car)
+library(emmeans)
+library(magrittr)
+library(multcompView)
+
+fruit <- read.csv("Skypilot 2017 (MASTER) Tab3 08-12-19.csv", header=T) # all data included (final)
+fruit$OtherSeedcount[is.na(fruit$OtherSeedcount)] <- 0
+fruit$Total.SeedsPerPlant <- fruit$No.TrmtSeeds+fruit$OtherSeedcount
+
+cols <- c("Site", "Habitat", "Treatment", "Plant.Number", "Morph", "No.Pollinated.Total", "Total.RepUnits", "Prct.Pollinated",
+          "Avg.SepL",	"Avg.TubeL",	"Avg.LobeL",	"Avg.LobW",	"Avg.CorollaFlare", "No.SeedsPerFruit", "Fruit.Maturity.Rank", 
+          "Total.SeedsPerFruit", "Total.SeedsPerPlant")
+fruit.sm <- subset(fruit, select=cols) # remove raw data columns
+
+fruit.sm <- subset(fruit.sm, Avg.CorollaFlare>0) # remove those without flower measurements
+fruit.sm$Prct.Pollinated <- as.numeric(as.character(fruit.sm$Prct.Pollinated)) # change Prct.Pollinated to numeric (it was a factor)
+fruit.sm <- subset(fruit.sm, !(Treatment=="Supplementation" & Prct.Pollinated < 0.75)) # remove those supplement flowers with <75% fruits pollinated
+fruit.sm <- subset(fruit.sm, Fruit.Maturity.Rank < 2.5) # remove fruit maturity 2.5 (includes all exlusion as well) 
+fruit.sm$CorollaL <- fruit.sm$Avg.TubeL + fruit.sm$Avg.LobeL
+max(fruit.sm$Total.SeedsPerPlant)
+fruit.sm$RelativeFitness <- fruit.sm$Total.SeedsPerPlant/138
+
+
+fruit.sw <- subset(fruit.sm, Morph=="Sweet") # subst to sweet morph only
+fruit.sw.np <- subset(fruit.sw, Site %in% c("Niwot Ridge", "Penn Mountain"))
+fruit.sw.nat <- subset(fruit.sw, Treatment=="Natural")
+fruit.sw.sup <- subset(fruit.sw, Treatment=="Supplementation")
+fruit.nat <- subset(fruit.sm, Treatment=="Natural") # subset to natural treatment only
+fruit.sup <- subset(fruit.sm, Treatment=="Supplementation") # subset to supplement treatment only
+fruit.np <- subset(fruit.sm, Site %in% c("Niwot Ridge", "Penn Mountain"))
+
+flwr <- subset(fruit, Avg.CorollaFlare>0) # remove those without flower measurements
+flwr.nat <- subset(flwr, Treatment=="Natural") # subset to natural treatment only
+```
+
+
+### Total Seeds/Plant by Size Measurement*Morph
+```{r}
+fit<-lme(sqrt(Total.SeedsPerPlant)~Avg.CorollaFlare*Morph, random=~1|Site/Habitat, data=fruit.nat, method="ML", na.action=na.omit)  
+anova.lme(fit, type="marginal")
+summary(fit)
+
+fit<-lme(sqrt(Total.SeedsPerPlant)~Avg.TubeL*Morph, random=~1|Site/Habitat, data=fruit.nat, method="ML", na.action=na.omit)  
+anova.lme(fit)
+summary(fit)
+```
+
+
+#### Flower measurements combined via pca (all 4 traits - same as pressed) - BOTH MORPHS
+```{r}
+measures <- c("Avg.CorollaFlare", "Avg.TubeL", "Avg.LobeL", "Avg.LobW")
+flwr.size<-as.matrix(subset(fruit.nat, select=measures))
+pc<-prcomp(flwr.size,center=TRUE)
+print(pc)
+plot(pc, type="l")
+summary(pc)
+pc.extracted <- as.data.frame(predict(pc, newdata=fruit.nat))
+##### Almost all loadings for PC2 are negative, but Avg. TubeL has a very high positive
+fruit.nat$PC1.all <- pc.extracted$PC1 
+fruit.nat$PC2.all <- pc.extracted$PC2
+
+```
+
+
+#### Total Seeds/Plant by PC1*Morph and PC2*Morph
+```{r}
+fit<-lme(sqrt(Total.SeedsPerPlant)~PC1.all*Morph, random=~1|Site/Habitat, data=fruit.nat, method="ML", na.action=na.omit)  
+anova.lme(fit)
+summary(fit)
+
+fit<-lme(sqrt(Total.SeedsPerPlant)~PC2.all*Morph, random=~1|Site/Habitat, data=fruit.nat, method="ML", na.action=na.omit)  
+anova.lme(fit)
+summary(fit)
+```
